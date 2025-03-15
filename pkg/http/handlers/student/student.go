@@ -99,3 +99,27 @@ func GetById(db storage.Storage) http.HandlerFunc {
 		response.WriteJSON(res, http.StatusOK, student)
 	}
 }
+
+func GetList(db storage.Storage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		// Ensure the request method is GET
+		if req.Method != http.MethodGet {
+			slog.Error("Invalid request method")
+			response.WriteJSON(res, http.StatusMethodNotAllowed, response.GeneralError("Invalid request method", nil))
+			return
+		}
+
+		slog.Info("Fetching all students")
+		// Fetch all students from the database
+		students, err := db.GetStudents()
+		if err != nil {
+			slog.Error("Failed to fetch students", slog.String("error", err.Error()))
+			response.WriteJSON(res, http.StatusInternalServerError, response.GeneralError("Failed to fetch students", err))
+			return
+		}
+
+		// Respond with the list of students
+		slog.Info("Students fetched successfully")
+		response.WriteJSON(res, http.StatusOK, students)
+	}
+}
