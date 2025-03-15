@@ -11,7 +11,6 @@ import (
 
 type Response struct {
 	Message string `json:"message"`
-	Status  int    `json:"status"`
 	Error   string `json:"error"`
 }
 
@@ -41,7 +40,6 @@ func ValidationError(errs validator.ValidationErrors) Response {
 	}
 	return Response{
 		Message: "Validation failed",
-		Status:  http.StatusBadRequest,
 		Error:   strings.Join(errMsgs, ", "),
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/prathikshetty9b/students-api/pkg/storage"
@@ -53,9 +54,48 @@ func New(db storage.Storage) http.HandlerFunc {
 		}
 
 		// Respond with a success message
+		slog.Info("Student created successfully", slog.Int64("id", lastId))
 		response.WriteJSON(res, http.StatusCreated, map[string]any{
 			"message": "Student created successfully",
 			"id":      lastId,
 		})
+	}
+}
+
+func GetById(db storage.Storage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		// Ensure the request method is GET
+		if req.Method != http.MethodGet {
+			slog.Error("Invalid request method")
+			response.WriteJSON(res, http.StatusMethodNotAllowed, response.GeneralError("Invalid request method", nil))
+			return
+		}
+
+		slog.Info("Fetching student by id")
+		// Get the student ID from the URL path
+		id := req.PathValue("id")
+		if id == "" {
+			slog.Error("Student ID is required")
+			response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Student ID is required", nil))
+			return
+		}
+
+		intId, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			slog.Error("Invalid student ID", slog.String("error", err.Error()))
+			response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Invalid student ID", err))
+			return
+		}
+
+		student, err := db.GetStudentByID(intId)
+		if err != nil {
+			slog.Error("Failed to fetch student", slog.String("error", err.Error()))
+			response.WriteJSON(res, http.StatusInternalServerError, response.GeneralError("Failed to fetch student", err))
+			return
+		}
+
+		// Respond with the student details
+		slog.Info("Student fetched successfully", slog.String("id", id))
+		response.WriteJSON(res, http.StatusOK, student)
 	}
 }
