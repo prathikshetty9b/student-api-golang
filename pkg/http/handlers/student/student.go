@@ -123,3 +123,101 @@ func GetList(db storage.Storage) http.HandlerFunc {
 		response.WriteJSON(res, http.StatusOK, students)
 	}
 }
+
+func UpdateById(db storage.Storage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		// Ensure the request method is PUT
+		if req.Method != http.MethodPut {
+			slog.Error("Invalid request method")
+			response.WriteJSON(res, http.StatusMethodNotAllowed, response.GeneralError("Invalid request method", nil))
+			return
+		}
+
+		slog.Info("Updating student by id")
+		// Get the student ID from the URL path
+		id := req.PathValue("id")
+		if id == "" {
+			slog.Error("Student ID is required")
+			response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Student ID is required", nil))
+			return
+		}
+
+		intId, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			slog.Error("Invalid student ID", slog.String("error", err.Error()))
+			response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Invalid student ID", err))
+			return
+		}
+
+		// Decode the request body into a Student struct
+		var student types.Student
+		err = json.NewDecoder(req.Body).Decode(&student)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				slog.Error("Request body is empty")
+				response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Request body is empty", err))
+			} else {
+				slog.Error("Failed to decode request body", slog.String("error", err.Error()))
+				response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Failed to decode request body", err))
+			}
+			return
+		}
+
+		// request validation
+		if err := validator.New().Struct(student); err != nil {
+			validateErrs := err.(validator.ValidationErrors)
+			slog.Error("Validation failed", slog.String("error", validateErrs.Error()))
+			response.WriteJSON(res, http.StatusBadRequest, response.ValidationError(validateErrs))
+			return
+		}
+
+		err = db.UpdateStudentById(intId, student.Name, student.Email, student.Age)
+		if err != nil {
+			slog.Error("Failed to update student", slog.String("error", err.Error()))
+			response.WriteJSON(res, http.StatusInternalServerError, response.GeneralError("Failed to update student", err))
+			return
+		}
+
+		// Respond with a success message
+		slog.Info("Student updated successfully", slog.String("id", id))
+		response.WriteJSON(res, http.StatusOK, map[string]string{"message": "Student updated successfully"})
+	}
+}
+
+func DeleteById(db storage.Storage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		// Ensure the request method is DELETE
+		if req.Method != http.MethodDelete {
+			slog.Error("Invalid request method")
+			response.WriteJSON(res, http.StatusMethodNotAllowed, response.GeneralError("Invalid request method", nil))
+			return
+		}
+
+		slog.Info("Deleting student by id")
+		// Get the student ID from the URL path
+		id := req.PathValue("id")
+		if id == "" {
+			slog.Error("Student ID is required")
+			response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Student ID is required", nil))
+			return
+		}
+
+		intId, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			slog.Error("Invalid student ID", slog.String("error", err.Error()))
+			response.WriteJSON(res, http.StatusBadRequest, response.GeneralError("Invalid student ID", err))
+			return
+		}
+
+		err = db.DeleteStudentById(intId)
+		if err != nil {
+			slog.Error("Failed to delete student", slog.String("error", err.Error()))
+			response.WriteJSON(res, http.StatusInternalServerError, response.GeneralError("Failed to delete student", err))
+			return
+		}
+
+		// Respond with a success message
+		slog.Info("Student deleted successfully", slog.String("id", id))
+		response.WriteJSON(res, http.StatusOK, map[string]string{"message": "Student deleted successfully"})
+	}
+}
